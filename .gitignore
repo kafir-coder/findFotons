@@ -1,9 +1,10 @@
+.env
+
 node_modules
 
 builds
 
-.env.development
-
-.env.production
-
 yarn.lock
+
+
+.gitignore
