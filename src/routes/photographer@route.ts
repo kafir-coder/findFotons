@@ -9,4 +9,4 @@ photographer.get('/:id', get);
 photographer.put('/:id', update);
 photographer.delete('/:id', drop);
 
-export default photographer;
+export default photographer; 

@@ -3,9 +3,9 @@ import express, {Request, Response} from 'express';
 import {config} from 'dotenv';
 import RedisConnect from './database/index';
 import routes from './routes';
-
-
+import connectMongo from './database/mongo-connection';
 config();
+
 const app = express();
 const redis = new RedisConnect(
   process.env.REDIS_PORT,
@@ -28,6 +28,7 @@ app.get('/', function(req: Request, res: Response) {
 
 const httpServer = new Server(app);
 httpServer.listen(process.env.NODE_PORT, function() {
+  connectMongo();
   console.log(`App running on port ${process.env.NODE_PORT}`)
 });
 

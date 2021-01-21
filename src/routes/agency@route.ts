@@ -1,10 +1,8 @@
 import { Router } from 'express';
-import {store, index, get, update, drop} from '../controllers/agency@controller';
+import { index, get, update, drop} from '../controllers/agency@controller';
 
 const agency = Router();
 
-
-agency.post('/', store);
 agency.get('/', index);
 agency.get('/:id', get);
 agency.put('/:id', update);
