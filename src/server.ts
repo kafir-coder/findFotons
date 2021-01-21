@@ -12,6 +12,14 @@ const redis = new RedisConnect(
   process.env.REDIS_HOST
 )
 redis.setConnection();
+if (process.env.NODE_ENV === 'development') {
+  const midd = require('./libraries/middlewares/normal');
+  midd.default(app);
+}
+if (process.env.NODE_ENV === 'production') {
+  const midd = require('./libraries/middlewares/production');
+  midd.default(app);
+}
 routes(app);
 
 app.get('/', function(req: Request, res: Response) {
@@ -23,4 +31,4 @@ httpServer.listen(process.env.NODE_PORT, function() {
   console.log(`App running on port ${process.env.NODE_PORT}`)
 });
 
-export const redis_socket = redis.getConnection;
+export const redis_socket = redis.getConnection();

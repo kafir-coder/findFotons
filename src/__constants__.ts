@@ -6,14 +6,16 @@ export interface IPhoto {
 };
 
 export interface IPhotographer {
+  id: string,
   name: string,
   birth: {
     day: number,
     month: number, 
     year: number
   },
+  contacts: String,
   country: string,
-  style: String[],
+  styles: String,
   user_photo_url: string,
   employed: boolean,
   employer: string
@@ -34,10 +36,16 @@ export interface IReacter {
 export interface IAgency {
   name: string,
   location: string,
-  contacts: string[],
+  contacts: string
+  styles: string[],
   password: string
 }
 
+export interface ILogin {
+  contact: string,
+  password: string,
+  role: string
+}
 export interface IPost {
   photos: String[],
   tags: String[],
@@ -59,3 +67,11 @@ export interface IFollowing {
 export interface ITrending {
   followingsId: String[]
 }
+
+export const httpReponseMessages = {
+  FILE_NOT_FOUND_404: 'Resource doesn\'t exists',
+  SERVER_ERROR_500: 'Sorry, Our fault!!',
+  ANAUTHORIZED_401: 'Your anauthorized',
+  SUCESS_200: 'The request was succeed',
+  SUCESS_201: 'The resource was created with success',
+};
