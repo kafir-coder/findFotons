@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { IPhotographer, httpReponseMessages } from '../__constants__';
 import * as R from 'ramda';
 import photographerModel from '../models/Photographer';
+import reacterModel from '../models/Reacter';
+import {redis_socket} from '../server';
+import paginate from '../libraries/helpers/paginate';
 
 export async function index(req: Request, res: Response) {
   try {
@@ -90,5 +93,68 @@ export async function drop(req: Request, res: Response) {
       message: httpReponseMessages.SERVER_ERROR_500
     })
     throw error
+  }
+}
+
+export async function index_followers(req: Request, res: Response) {
+  try {
+    const {id} = req.params;
+    const {page = 0} = req.query;
+
+    const hasReacter = await photographerModel.exists({
+      _id: id
+    });
+    if (!hasReacter) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+        resouce: 'Reacter'
+      });
+    }
+    const followers = await redis_socket.smembers(`followers:${id}`);
+    const count: unknown = await redis_socket.scard(`followers:${id}`);
+    res.header('x-Total-content', (count as string));
+    const result = paginate(followers, 5, (page as unknown as number));
+    const followObject = [];
+    for (let iterator of result) {
+      const {name} = await reacterModel.findById(iterator);
+      followObject.push({
+        name: name,
+        id: iterator
+      });
+    }
+    return res.status(200).json(followObject);
+  } catch (error) {
+    
+  }
+}
+
+export async function get_follower(req: Request, res: Response) {
+  try {
+    const {id, fid} = req.params;
+    let hasRecord = await photographerModel.exists({
+      _id: id
+    });
+
+    if (!hasRecord) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+      });
+    }
+    const record = await redis_socket.sismember(`followers:${id}`, fid);
+
+    if (!record) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404
+      });
+    }
+    const {name} = await reacterModel.findById(fid);
+    return res.status(200).json({
+      name: name,
+      id: fid
+    })
+  } catch (error) {
+    return res.status(500).json({
+      message: httpReponseMessages.SERVER_ERROR_500
+    })
   }
 }

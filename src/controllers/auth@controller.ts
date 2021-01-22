@@ -109,7 +109,6 @@ export async function registerR(req: Request, res: Response): Promise<IReacter> 
 
     const body: IReacter = req.body;
     const {contact} = body;
-    const styles = body.styles.split(',');
     const exists = await reacterModel.findOne({
       contact: contact
     });
