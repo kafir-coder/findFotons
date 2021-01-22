@@ -1,7 +1,10 @@
 import {Request, Response} from 'express';
-import {IReacter, httpReponseMessages} from '../__constants__';
+import {IReacter ,httpReponseMessages} from '../__constants__';
 import * as R from 'ramda';
+import {redis_socket} from '../server';
+import photographerModel from '../models/Photographer';
 import reacterModel from '../models/Reacter';
+import paginate from '../libraries/helpers/paginate';
 
 export async function index(req: Request, res: Response) {
   try {
@@ -67,7 +70,9 @@ export async function update(req: Request, res: Response) {
 export async function drop(req: Request, res: Response) {
   try {
     const {id} = req.params;
+    console.log(id);
     let record = await reacterModel.findById(id as string, false);
+    console.log(record)
     if (record === null || R.isEmpty(record as Object)) {
       return res.status(404).json({
         message: "Data already Deleted",
@@ -75,15 +80,158 @@ export async function drop(req: Request, res: Response) {
     }
 
     let { deletedCount } = await reacterModel.deleteOne({_id: id});
-    if (deletedCount === 1) {
+    if (deletedCount !== 1) {
       return res.status(200).json({
-        message: httpReponseMessages.SUCESS_200
+        message: httpReponseMessages.FILE_NOT_FOUND_404
       });
     }
+    return res.status(200).json({
+      message: httpReponseMessages.SUCESS_200
+    });
   } catch (error) {
     res.status(500).json({
       message: httpReponseMessages.SERVER_ERROR_500
     })
     throw error
+  }
+}
+
+export async function store_follows(req: Request, res: Response) {
+  try {
+    
+    const {photographerId} = req.body;
+    const {id} = req.params;
+
+    const hasPhotographer = await photographerModel.exists({
+      _id: photographerId
+    });
+    if (!hasPhotographer) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+        resouce: 'Photographer'
+      });
+    }
+    const hasReacter = await reacterModel.exists({
+      _id: id
+    });
+    if (!hasReacter) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+        resouce: 'Reacter'
+      });
+    }
+
+
+    const wasSaved = await redis_socket.sadd(`following:${id}`, photographerId) && await redis_socket.sadd(`followers:${photographerId}`, id);
+    
+
+    if (!wasSaved) {
+      return res.status(200).json({
+        message: 'A unexpected problem ocurred'
+      })
+    }
+
+    return res.status(201).json({
+      message: httpReponseMessages.SUCESS_201
+    })
+  } catch (error) {
+    return res.status(500).json({
+      message: httpReponseMessages.SERVER_ERROR_500
+    })
+  }
+
+}
+
+export async function index_follows(req: Request, res: Response) {
+  try {
+    const {id} = req.params;
+    const {page = 0} = req.query;
+
+    const hasReacter = await reacterModel.exists({
+      _id: id
+    });
+    if (!hasReacter) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+        resouce: 'Reacter'
+      });
+    }
+    const following = await redis_socket.smembers(`following:${id}`);
+    const count: unknown = await redis_socket.scard(`following:${id}`);
+    res.header('x-Total-content', (count as string));
+    const result = paginate(following, 5, (page as unknown as number));
+    const followObject = [];
+    for (let iterator of result) {
+      const {name} = await photographerModel.findById(iterator);
+      followObject.push({
+        name: name,
+        id: iterator
+      });
+    }
+    return res.status(200).json(followObject);
+  } catch (error) {
+    
+  }
+}
+
+export async function get_follow(req: Request, res: Response) {
+  try {
+    const {id, fid} = req.params;
+    let hasRecord = await reacterModel.exists({
+      _id: id
+    });
+
+    if (!hasRecord) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+      });
+    }
+    const record = await redis_socket.sismember(`following:${id}`, fid);
+
+    if (!record) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404
+      });
+    }
+    const {name} = await photographerModel.findById(fid);
+    return res.status(200).json({
+      name: name,
+      id: fid
+    })
+  } catch (error) {
+    return res.status(500).json({
+      message: httpReponseMessages.SERVER_ERROR_500
+    })
+  }
+}
+
+export async function delete_follow(req: Request, res: Response) {
+  try {
+    const {id, fid} = req.params;
+    let hasRecord = await reacterModel.exists({
+      _id: id
+    });
+
+    if (!hasRecord) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+      });
+    }
+    const record = await redis_socket.sismember(`following:${id}`, fid);
+
+    if (!record) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404
+      });
+    }
+    await redis_socket.srem(`following:${id}`, fid);
+    await redis_socket.srem(`followers:${fid}`, id);
+    return res.status(200).json({
+      message: httpReponseMessages.SUCESS_200
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: httpReponseMessages.SERVER_ERROR_500
+    })
   }
 }

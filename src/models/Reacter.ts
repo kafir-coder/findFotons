@@ -19,6 +19,7 @@ ReacterSchema.methods = {
   },
   toJSON() {
     return {
+      _id: this._id,
       name: this.name,
       birth: this.birth,
       contact: this.contact,
