@@ -11,6 +11,9 @@ import {validationResult} from 'express-validator';
 import * as R from 'ramda';
 import { redis_socket } from '../server';
 import {IPhotographer, IAgency, IReacter, ILogin, httpReponseMessages} from '../__constants__';
+import photographerModel from '../models/Photographer';
+import agencyModel from '../models/Agency';
+import reacterModel from '../models/Reacter';
 import * as crypto from 'crypto';
 import photographer from 'routes/photographer@route';
 import reacter from 'routes/reacter@routes';
@@ -27,31 +30,29 @@ export async function registerP(req: Request, res: Response): Promise<IPhotograp
     }
 
     const body: IPhotographer = req.body;
-    const {contacts} = body;
+    const {contact} = body;
     const styles = body.styles.split(',');
-    redis_socket.hgetall(`photographer:${contacts}`).then(async (record: IPhotographer) => {
-      if (!R.isEmpty(record)) {
-        return res.status(200).send({
-          message: "This user already exists"
-        });
-      }
-      const id = `${await crypto.randomBytes(10).toString('base64')}:${contacts}`;
-      const token = `session:${id}`;
-
-      const photographer: IPhotographer = {id, ...body};
-      redis_socket.hmset(`photographer:${contacts}`, photographer).then(OK_MESSAGE => {
-        if (OK_MESSAGE !== 'OK') return;
-        redis_socket.set(`token:${id}`, token);
-        redis_socket.get(`token:${id}`).then(value => {
-          redis_socket.hgetall(`photographer:${contacts}`).then((photographer_record: IPhotographer) => {
-            return res.status(201).send({...photographer_record, token: value})
-          });
-        });
-      }).catch(error => {
-        throw error;
-      })
+    console.log(JSON.stringify(body.birth))
+    const exists = await photographerModel.findOne({
+      contact: contact
     });
+    console.log(exists)
+    if (exists !== null) {
+      return res.status(200).send({
+        message: "This user already exists"
+      });
+    }
+    await photographerModel.create(body as IPhotographer);
+    const record: IPhotographer = await photographerModel.findOne({
+      contact: contact
+    });
+    let token = `session:${await crypto.randomBytes(10).toString('base64')}:${record.id}:${contact}:${Date.now()}`;
+
+    await redis_socket.set(`token:${record.id}`, token);
+    token = await redis_socket.get(`token:${record.id}`);
+    return res.status(201).send({record, token: token})
   } catch (e) {
+    console.log(e);
     return res.status(500).json({
       message: httpReponseMessages.SERVER_ERROR_500,
     });
@@ -70,29 +71,24 @@ export async function registerA(req: Request, res: Response): Promise<IAgency> {
 
     const body: IAgency = req.body;
     const {contact} = body;
-    const styles = body.styles;
-    redis_socket.hgetall(`agency:${contact}`).then(async (record: IAgency) => {
-      if (!R.isEmpty(record)) {
-        return res.status(200).send({
-          message: "This user already exists"
-        });
-      }
-      const id = `${await crypto.randomBytes(10).toString('base64')}:${contact}`;
-      const token = `session:${id}`;
-
-      const agency: IAgency = {id, ...body};
-      redis_socket.hmset(`agency:${contact}`, agency).then(OK_MESSAGE => {
-        if (OK_MESSAGE !== 'OK') return;
-        redis_socket.set(`token:${id}`, token);
-        redis_socket.get(`token:${id}`).then(value => {
-          redis_socket.hgetall(`agency:${contact}`).then((Arecord: IAgency) => {
-            return res.status(201).send({...Arecord, token: value})
-          });
-        });
-      }).catch(error => {
-        throw error;
-      })
+    const styles = body.styles.split(',');
+    const exists = await agencyModel.findOne({
+      contact: contact
     });
+    if (exists !== null) {
+      return res.status(200).send({
+        message: "This user already exists"
+      });
+    }
+    await agencyModel.create(body as IAgency);
+    const record: IAgency = await agencyModel.findOne({
+      contact: contact
+    });
+    let token = `session:${await crypto.randomBytes(10).toString('base64')}:${record.id}:${contact}:${Date.now()}`;
+
+    await redis_socket.set(`token:${record.id}`, token);
+    token = await redis_socket.get(`token:${record.id}`);
+    return res.status(201).send({record, token: token})
   } catch (e) {
     console.log(e);
     return res.status(500).json({
@@ -113,29 +109,24 @@ export async function registerR(req: Request, res: Response): Promise<IReacter> 
 
     const body: IReacter = req.body;
     const {contact} = body;
-    const styles = body.styles;
-    redis_socket.hgetall(`reacter:${contact}`).then(async (record: IReacter) => {
-      if (!R.isEmpty(record)) {
-        return res.status(200).send({
-          message: "This user already exists"
-        });
-      }
-      const id = `${await crypto.randomBytes(10).toString('base64')}:${contact}`;
-      const token = `session:${id}`;
-
-      const reacter: IReacter = {id, ...body};
-      redis_socket.hmset(`reacter:${contact}`, reacter).then(OK_MESSAGE => {
-        if (OK_MESSAGE !== 'OK') return;
-        redis_socket.set(`token:${id}`, token);
-        redis_socket.get(`token:${id}`).then(value => {
-          redis_socket.hgetall(`reacter:${contact}`).then((Rrecord: IReacter) => {
-            return res.status(201).send({...Rrecord, token: value})
-          });
-        });
-      }).catch(error => {
-        throw error;
-      })
+    const styles = body.styles.split(',');
+    const exists = await reacterModel.findOne({
+      contact: contact
     });
+    if (exists !== null) {
+      return res.status(200).send({
+        message: "This user already exists"
+      });
+    }
+    await reacterModel.create(body as IReacter);
+    const record: IReacter = await reacterModel.findOne({
+      contact: contact
+    });
+    let token = `session:${await crypto.randomBytes(10).toString('base64')}:${record.id}:${contact}:${Date.now()}`;
+
+    await redis_socket.set(`token:${record.id}`, token);
+    token = await redis_socket.get(`token:${record.id}`);
+    return res.status(201).send({record, token: token})
   } catch (e) {
     console.log(e);
     return res.status(500).json({
@@ -151,27 +142,68 @@ export async function login(req: Request, res: Response) {
         errors: errors.array(),
       });
     }
-    const body: ILogin = req.body;
-    redis_socket.hgetall(`${body.role}:${body.contact}`).then((Genericrecord: (IReacter | IPhotographer | IAgency)) => {
-      if (R.isEmpty(Genericrecord)) {
-        return res.status(200).send({
-          message: httpReponseMessages.FILE_NOT_FOUND_404
-        });
-      }
+    const {contact, password, role} = req.body;
 
-      if (Genericrecord.password !== body.password) {
-        return res.status(401).send({
-          message: httpReponseMessages.ANAUTHORIZED_401
+    switch (role) {
+      case 'photographer':{
+        const aRecord: IPhotographer = await photographerModel.findOne({
+          contact: contact
         });
-      }
-      const {id} = Genericrecord;
-      const token = `session:${id}`;
-      redis_socket.set(`token:${id}`, token).then(value => {
-        redis_socket.get(`token:${id}`).then(value => {
-          return res.status(201).send({...Genericrecord, token: value})
+        if (aRecord === null) {
+          return res.status(200).send({
+            message: httpReponseMessages.FILE_NOT_FOUND_404
+          });
+        }
+        const samePassword = aRecord.authenticatePhotographer(password);
+        console.log(samePassword);
+        if (!samePassword) {
+          return res.status(491).send({
+            message: httpReponseMessages.ANAUTHORIZED_401
+          });
+        }
+        const token = `session:${await crypto.randomBytes(10).toString('base64')}:${aRecord.id}:${contact}:${Date.now()}`;
+        await redis_socket.set(`token:${aRecord.id}`, token);
+        return res.status(201).send({aRecord, token: token})
+      }break;
+      case 'agency': {
+        const aRecord: IAgency = await agencyModel.findOne({
+          contact: contact
         });
-      });
-    });
+        if (aRecord === null) {
+          return res.status(200).send({
+            message: httpReponseMessages.FILE_NOT_FOUND_404
+          });
+        }
+        const samePassword = aRecord.authenticateAgency(password)
+        if (!samePassword) {
+          return res.status(491).send({
+            message: httpReponseMessages.ANAUTHORIZED_401
+          });
+        }
+        const token = `session:${await crypto.randomBytes(10).toString('base64')}:${aRecord.id}:${contact}:${Date.now()}`;
+        await redis_socket.set(`token:${aRecord.id}`, token);
+        return res.status(201).send({aRecord, token: token})
+      }break;
+      case 'reacter': {
+        const aRecord: IReacter = await reacterModel.findOne({
+          contact: contact
+        });
+        if (aRecord === null) {
+          return res.status(200).send({
+            message: httpReponseMessages.FILE_NOT_FOUND_404
+          });
+        }
+        const samePassword = aRecord.authenticateReacter(password)
+        if (!samePassword) {
+          return res.status(491).send({
+            message: httpReponseMessages.ANAUTHORIZED_401
+          });
+        }
+        const token = `session:${await crypto.randomBytes(10).toString('base64')}:${aRecord.id}:${contact}:${Date.now()}`;
+        await redis_socket.set(`token:${aRecord.id}`, token);
+        return res.status(201).send({aRecord, token: token})
+      }break;
+    }
   } catch (e) {
     console.log(e);
     return res.status(500).json({

@@ -13,7 +13,8 @@ export interface IPhotographer {
     month: number, 
     year: number
   },
-  contacts: String,
+  contact: String,
+  password: String,
   country: string,
   styles: String,
   user_photo_url: string,
