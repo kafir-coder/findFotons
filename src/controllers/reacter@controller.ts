@@ -1,9 +1,10 @@
 import {Request, Response} from 'express';
-import {IReacter ,httpReponseMessages} from '../__constants__';
+import {IReacter ,httpReponseMessages, IPhotographer, IPost} from '../__constants__';
 import * as R from 'ramda';
 import {redis_socket} from '../server';
 import photographerModel from '../models/Photographer';
 import reacterModel from '../models/Reacter';
+import postModel from '../models/Post';
 import paginate from '../libraries/helpers/paginate';
 
 export async function index(req: Request, res: Response) {
@@ -99,7 +100,7 @@ export async function drop(req: Request, res: Response) {
 export async function store_follows(req: Request, res: Response) {
   try {
     
-    const {photographerId} = req.body;
+    const {photographerId} = req.query;
     const {id} = req.params;
 
     const hasPhotographer = await photographerModel.exists({
@@ -122,19 +123,23 @@ export async function store_follows(req: Request, res: Response) {
     }
 
 
+    //
     const wasSaved = await redis_socket.sadd(`following:${id}`, photographerId) && await redis_socket.sadd(`followers:${photographerId}`, id);
-    
-
+  
     if (!wasSaved) {
       return res.status(200).json({
         message: 'A unexpected problem ocurred'
       })
     }
-
+    const offset = await redis_socket.scard(`followers:${photographerId}`);
+    await redis_socket.hset(`follower:${photographerId}`, id, offset+1);
+    const offsets = await redis_socket.hgetall(`follower:${photographerId}`);
+    console.log(offsets);
     return res.status(201).json({
       message: httpReponseMessages.SUCESS_201
     })
   } catch (error) {
+    console.log(error)
     return res.status(500).json({
       message: httpReponseMessages.SERVER_ERROR_500
     })
@@ -233,5 +238,32 @@ export async function delete_follow(req: Request, res: Response) {
     return res.status(500).json({
       message: httpReponseMessages.SERVER_ERROR_500
     })
+  }
+}
+
+export async function react(req: Request, res: Response) {
+  try {
+
+    const { post_id, action } = req.query;
+    const {id} = req.params;
+    const hasRecord = await postModel.exists({
+      _id: post_id
+    });
+
+    if (!hasRecord) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+      });
+    }
+    const {owner}: IPost = await postModel.findById(post_id);
+    const offset = await redis_socket.hget(`follower:${owner}`, id);
+    await redis_socket.setbit(`likes:${post_id}`, parseInt(offset as string), (action as unknown as number));
+    const liked = await redis_socket.getbit(`likes:${post_id}`,  parseInt(offset as string));
+    return res.status(201).json({
+      message: httpReponseMessages.SUCESS_201,
+      action: liked
+    })
+  } catch (error) {
+    
   }
 }

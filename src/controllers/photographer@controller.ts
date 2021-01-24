@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
-import { IPhotographer, httpReponseMessages } from '../__constants__';
+import { IPhotographer, httpReponseMessages, IPost } from '../__constants__';
 import * as R from 'ramda';
 import photographerModel from '../models/Photographer';
 import reacterModel from '../models/Reacter';
 import {redis_socket} from '../server';
 import paginate from '../libraries/helpers/paginate';
+import postModel from '../models/Post';
 
 export async function index(req: Request, res: Response) {
   try {
@@ -156,5 +157,84 @@ export async function get_follower(req: Request, res: Response) {
     return res.status(500).json({
       message: httpReponseMessages.SERVER_ERROR_500
     })
+  }
+}
+
+export async function publish(req: Request, res: Response) {
+  try {
+    
+    const {photos, tags, description}: IPost = req.body;
+    const {id} = req.params;
+
+    const saved = await postModel.create({
+      photos, tags, owner: id, description
+    });
+    return res.status(201).json(saved);
+  } catch (error) {
+    
+  }
+}
+
+export async function index_publication(req: Request, res: Response) {
+  try {
+    const {id} = req.params;
+    const {page = 1} = req.query;
+    let records = await postModel.find({
+      owner: id
+    }).limit(5).skip((parseInt(page as string) - 1) * 5);
+
+    if (R.isEmpty(records) || records === null) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+      });
+    }
+    
+    return res.status(200).json({
+      message: records
+    });
+
+  } catch (error) {
+    
+  }
+}
+
+export async function get_publication(req: Request, res: Response) {
+  try {
+    const {id, pid} = req.params;
+    const record = await photographerModel.exists({
+      _id: id
+    });
+    if (!record) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+      });
+    }
+    const publication = await postModel.findById(pid); 
+    return res.status(200).json(publication);
+
+  } catch (error) {
+    
+  }
+}
+
+export async function index_photos(req: Request, res: Response) {
+  try {
+    const {id, pid} = req.params;
+    const hasRecord = await photographerModel.exists({
+      _id: id
+    });
+    if (!hasRecord) {
+      return res.status(404).json({
+        message: httpReponseMessages.FILE_NOT_FOUND_404,
+      });
+    }
+    const {photos}: IPost = await postModel.findById({
+      _id: pid 
+    });
+
+    return res.status(200).json(photos);
+
+  } catch (error) {
+    
   }
 }
