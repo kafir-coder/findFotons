@@ -1,10 +1,8 @@
 // @ts-nocheck
-import {httpReponseMessages} from '../__constants__';
+import { httpReponseMessages } from '../../__constants__';
 import * as jot from 'jsonwebtoken';
 import {Request, Response, NextFunction} from 'express';
 import {redis_socket} from '../../server';
-import {httpReponseMessages} from '../__constants__';
-
 /**
  *
  * @param {Request} req object containing all request information
@@ -39,18 +37,3 @@ async function auth(req: Request, res: Response, next: NextFunction) {
 export default auth;
 
 
-
-
-// @ts-nocheck
-/* eslint-disable require-jsdoc */
-/**
- *
- * Nesta controller irão se fazer:
- *  cadastramento de agentes (customer e companhia)
- *  login de agente (customer e companhia)
- */
-
-
-
-
-// @ts-nocheck

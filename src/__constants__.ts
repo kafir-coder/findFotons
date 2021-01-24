@@ -50,6 +50,7 @@ export interface ILogin {
 export interface IPost {
   photos: String[],
   tags: String[],
+  owner: String,
   description: string
 }
 
